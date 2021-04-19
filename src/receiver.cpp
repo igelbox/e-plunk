@@ -1,4 +1,6 @@
 #include <RH_NRF24.h>
+#include <avr/wdt.h>
+
 #include "../lib/commands.hpp"
 #include "../lib/io.hpp"
 #include "../lib/panic.hpp"
@@ -8,6 +10,8 @@ using namespace panic;
 RH_NRF24 nrf24(9, 10);
 
 void setup() {
+  wdt_enable(WDTO_500MS);
+
   panic_init(13);
   for (auto r = io::init(nrf24); r != Error::OK;) {
     return halt(r);
@@ -49,6 +53,8 @@ static void handle_command(commands::_base& cmd) {
 }
 
 void loop() {
+  wdt_reset();
+
   auto ms = millis();
 
   send_status(ms, 100);
