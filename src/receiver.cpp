@@ -1,5 +1,6 @@
 #include <RH_NRF24.h>
 #include <avr/wdt.h>
+#include <Servo.h>
 
 #include "../lib/commands.hpp"
 #include "../lib/io.hpp"
@@ -7,20 +8,37 @@
 
 using namespace panic;
 
-RH_NRF24 nrf24(9, 10);
+typedef decltype(millis()) millis_t;
+
+#define PIN_PANIC 4
+#define PIN_PWM 5
+
+#define PIN_NRF_CE 9
+#define PIN_NRF_SC 10
+// #define PIN_NRF_.. 11, 12, 13
+
+RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
+static const long PWM_MIN = 1000;
+static const long PWM_NO_SIGNAL = 1400;  // A slight brake
+static const long PWM_MAX = 2000;
+static const millis_t PWM_TIMEOUT_MS = 500;  // Resets PWM to Neutral
+Servo vescPwm;
 
 void setup() {
   wdt_enable(WDTO_500MS);
+  panic_init(PIN_PANIC);
 
-  panic_init(13);
+  if (!vescPwm.attach(PIN_PWM)) {
+    // return halt(Error::SERVO_INIT);
+  }
+  vescPwm.writeMicroseconds(PWM_NO_SIGNAL);
+
   for (auto r = io::init(nrf24); r != Error::OK;) {
     return halt(r);
   }
 
-  Serial.println("Ready");
+  report(Error::OK);
 }
-
-typedef decltype(millis()) millis_t;
 
 static void send_status(millis_t ms, millis_t period) {
   static millis_t lastMs = 0;
@@ -34,20 +52,23 @@ static void send_status(millis_t ms, millis_t period) {
   commands::reply_status cmd;
   auto rs = io::send(nrf24, cmd.begin(), sizeof(cmd));
   if (rs != Error::OK) {
-    Serial.print("Send RS failed: ");
-    Serial.println(static_cast<uint8_t>(rs));
+    report(rs);
   }
 }
 
-static void handle_command(commands::_base& cmd) {
-  switch (cmd.id) {
+millis_t lastPwm = 0;
+
+static void handle_command(const commands::_base *cmd, const millis_t ms) {
+  switch (cmd->id) {
     case commands::set_pwm::ID: {
-      auto set_pwm = *static_cast<commands::set_pwm*>(&cmd);
-      Serial.println(set_pwm.value);
+      lastPwm = ms;
+      auto set_pwm = static_cast<const commands::set_pwm*>(cmd);
+      auto pwm = map(set_pwm->value, INT8_MIN, INT8_MAX, PWM_MIN, PWM_MAX);
+      // Serial.println(set_pwm->value);
+      vescPwm.writeMicroseconds(pwm);
     } break;
     default:
-      Serial.print("Unknown command: ");
-      Serial.println(cmd.id);
+      report(Error::UNKNOWN_CMD);
       return;
   }
 }
@@ -65,13 +86,17 @@ void loop() {
   switch (rr) {
     case Error::OK:
       if (len) {
-        auto cmd = *reinterpret_cast<commands::_base*>(message);
-        handle_command(cmd);
+        auto cmd = reinterpret_cast<const commands::_base*>(message);
+        handle_command(cmd, ms);
       }
       break;
     default:
-      Serial.print("Recv failed: ");
-      Serial.println(static_cast<uint8_t>(rr));
+      report(rr);
       break;
+  }
+
+  if ((ms - lastPwm) > PWM_TIMEOUT_MS) {
+    vescPwm.writeMicroseconds(PWM_NO_SIGNAL);
+    report(Error::PWM_TIMEOUT);
   }
 }
