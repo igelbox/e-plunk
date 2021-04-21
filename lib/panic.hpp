@@ -18,12 +18,14 @@ enum class Error {
   PWM_TIMEOUT = 0xA,
   UNKNOWN_CMD = 0xB,
   VESC_UART = 0xC,
+  DISPLAY_INIT = 0xD,
 };
 
 static uint8_t pin = 0;
+typedef void (*println_t)(const char *kind, uint8_t code);
+static println_t println = nullptr;
 
 void panic_init(uint8_t pin) {
-  // Serial.begin(9600);
   panic::pin = pin;
   pinMode(pin, OUTPUT);
 
@@ -32,6 +34,10 @@ void panic_init(uint8_t pin) {
   TCCR2B = 0b101;          // 1024 prescaler
   TIMSK2 |= (1 << TOIE2);  // enable timer overflow interrupt ISR
   interrupts();
+}
+
+void init_printer(println_t println) {
+  panic::println = println;
 }
 
 typedef decltype(millis()) millis_t;
@@ -87,8 +93,10 @@ void report(Error error) {
   }
 
   const auto code = static_cast<uint8_t>(error);
-  // Serial.print("Report: ");
-  // Serial.println(code);
+
+  if (println) {
+    println("REPORT", code);
+  }
 
   _echo(code);
 }
@@ -98,13 +106,13 @@ void halt(Error error) {
   }
 
   const auto code = static_cast<uint8_t>(error);
-  // Serial.print("Panic: ");
-  // Serial.println(code);
+
+  if (println) {
+    println("!PANIC", code);
+  }
 
   for (;;) {
     _echo(code);
-    // Serial.print(millis()); Serial.print(" ");
-    // Serial.println(panic::counter);
   }
 }
 
