@@ -18,6 +18,7 @@ using namespace panic;
 #define SCREEN_ADDRESS 0x3C
 #define FONT_WIDTH 6
 #define FONT_HEIGHT 8
+#define PAD_X 3
 
 #define STATUS_EXPIRE_MS 2000
 
@@ -29,6 +30,11 @@ static millis_t panic_time = 0;
 static void panic_snprintf(const char* kind, uint8_t code) {
   snprintf(PANIC_BUFFER, sizeof(PANIC_BUFFER), "%s: 0x%x", kind, code);
   panic_time = millis();
+}
+
+static void panic_draw() {
+  display.setCursor(PAD_X, SCREEN_HEIGHT - 1 * FONT_HEIGHT);
+  display.println(PANIC_BUFFER);
 }
 
 void setup() {
@@ -49,9 +55,7 @@ void setup() {
     panic_snprintf(kind, code);
     Serial.println(PANIC_BUFFER);
     display.setTextSize(1);
-    display.setCursor(0, SCREEN_HEIGHT - FONT_HEIGHT);
-    display.setTextColor(SSD1306_INVERSE);
-    display.println(PANIC_BUFFER);
+    panic_draw();
     display.display();
   });
   display.dim(true);
@@ -80,7 +84,8 @@ static void send_pwm(millis_t ms, millis_t period) {
   // Serial.println(panic::counter);
   auto a0 = analogRead(A0);
   auto a1 = analogRead(A1);
-  auto pos = constrain(map(a0, 0, a1 - 10, INT8_MIN, INT8_MAX), INT8_MIN, INT8_MAX);
+  auto pos =
+      constrain(map(a0, 0, a1 - 10, INT8_MIN, INT8_MAX), INT8_MIN, INT8_MAX);
   transmitterCentVolts = map(a1, 445, 635, 419, 446);
 
   commands::set_pwm cmd;
@@ -144,13 +149,13 @@ void loop() {
 
   display.clearDisplay();
 
-  const auto PAD_X = 3;
   drawBattery(PAD_X, 0, map(transmitterCentVolts, 330, 420, 0, 100));
   if (!statusExpired) {
     display.setCursor(SCREEN_WIDTH / 2 - 2 * FONT_WIDTH, 2);
     display.print(itoa(status.tempFET, buff, 10));
     display.print(" C");
-    display.drawCircle(SCREEN_WIDTH / 2 + FONT_WIDTH / 2-1, 2 + 1, 1, SSD1306_WHITE);
+    display.drawCircle(SCREEN_WIDTH / 2 + FONT_WIDTH / 2 - 1, 2 + 1, 1,
+                       SSD1306_WHITE);
 
     drawBattery(SCREEN_WIDTH - 30 - PAD_X, 0,
                 map(constrain(status.voltInput, 198, 252), 198, 252, 0, 100));
@@ -176,8 +181,7 @@ void loop() {
   display.println(dtostrf((double)transmitterCentVolts / 100.0, 4, 1, buff));
 
   if ((ms - panic_time) < STATUS_EXPIRE_MS) {
-    display.setCursor(PAD_X, SCREEN_HEIGHT - 1 * FONT_HEIGHT);
-    display.println(PANIC_BUFFER);
+    panic_draw();
   }
 
   if (!statusExpired) {
