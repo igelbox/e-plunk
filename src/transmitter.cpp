@@ -80,11 +80,12 @@ static void send_pwm(millis_t ms, millis_t period) {
   // Serial.println(panic::counter);
   auto a0 = analogRead(A0);
   auto a1 = analogRead(A1);
-  auto pos = map(a0, 0, a1, INT8_MIN, INT8_MAX);
+  auto pos = constrain(map(a0, 0, a1 - 10, INT8_MIN, INT8_MAX), INT8_MIN, INT8_MAX);
   transmitterCentVolts = map(a1, 445, 635, 419, 446);
 
   commands::set_pwm cmd;
   cmd.value = pos;
+  // Serial.println(pos);
   auto rs = io::send(nrf24, cmd.begin(), sizeof(cmd));
   if (rs != Error::OK) {
     report(rs);
@@ -139,36 +140,40 @@ void loop() {
   }
 
   bool statusExpired = (ms - status_time) >= STATUS_EXPIRE_MS;
+  char buff[16];
 
   display.clearDisplay();
 
   const auto PAD_X = 3;
   drawBattery(PAD_X, 0, map(transmitterCentVolts, 330, 420, 0, 100));
   if (!statusExpired) {
+    display.setCursor(SCREEN_WIDTH / 2 - 2 * FONT_WIDTH, 2);
+    display.print(itoa(status.tempFET, buff, 10));
+    display.print(" C");
+    display.drawCircle(SCREEN_WIDTH / 2 + FONT_WIDTH / 2-1, 2 + 1, 1, SSD1306_WHITE);
+
     drawBattery(SCREEN_WIDTH - 30 - PAD_X, 0,
                 map(constrain(status.voltInput, 198, 252), 198, 252, 0, 100));
   }
-
-  char buff[16];
 
   const auto YR = 2 * FONT_HEIGHT + 4;
   if (!statusExpired) {
     display.setCursor(PAD_X, YR + 0 * FONT_HEIGHT);
     display.print(F("Ma: "));
-    display.println(dtostrf((double)status.ampsMotor / 10.0, 0, 1, buff));
+    display.println(dtostrf((double)status.ampsMotor / 10.0, 4, 1, buff));
 
     display.setCursor(PAD_X, YR + 1 * FONT_HEIGHT);
     display.print(F("Ba: "));
-    display.println(dtostrf((double)status.ampsInput / 10.0, 0, 1, buff));
+    display.println(dtostrf((double)status.ampsInput / 10.0, 4, 1, buff));
 
     display.setCursor(PAD_X, YR + 2 * FONT_HEIGHT);
     display.print(F("Bv: "));
-    display.println(dtostrf((double)status.voltInput / 10.0, 0, 1, buff));
+    display.println(dtostrf((double)status.voltInput / 10.0, 4, 1, buff));
   }
 
   display.setCursor(PAD_X, YR + 3 * FONT_HEIGHT);
   display.print(F("Tv: "));
-  display.println(dtostrf((double)transmitterCentVolts / 100.0, 0, 1, buff));
+  display.println(dtostrf((double)transmitterCentVolts / 100.0, 4, 1, buff));
 
   if ((ms - panic_time) < STATUS_EXPIRE_MS) {
     display.setCursor(PAD_X, SCREEN_HEIGHT - 1 * FONT_HEIGHT);

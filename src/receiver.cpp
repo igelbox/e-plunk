@@ -25,7 +25,7 @@ typedef decltype(millis()) millis_t;
 RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
 VescUart vescUart;
 static const long PWM_MIN = 1000;
-static const long PWM_NO_SIGNAL = 1400;  // A slight brake
+static const long PWM_NO_SIGNAL = 1450;  // A slight brake
 static const long PWM_MAX = 2000;
 static const millis_t PWM_TIMEOUT_MS = 500;  // Resets PWM to Neutral
 Servo vescPwm;
@@ -71,7 +71,7 @@ static void gather_status(millis_t ms, millis_t period) {
   status.dutyCycle = (uint8_t)(vescUart.data.dutyCycleNow * UINT8_MAX);
   auto wpm = vescUart.data.rpm / MOTOR_POLES * GEAR_RATIO;
   auto speed = WHEEL_CIRCUMFERENCE_M * wpm * .06f;
-  status.speed = (uint8_t)(speed * 10.0f);
+  status.speed = (uint8_t)(fabs(speed) * 10.0f);
   status.voltInput = (int16_t)(vescUart.data.inpVoltage * 10.f);
 }
 
