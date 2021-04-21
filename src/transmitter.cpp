@@ -11,6 +11,9 @@ using namespace panic;
 #define PIN_NRF_SC 10
 // #define PIN_NRF_.. 11, 12, 13
 
+#define WHEEL_CIRCUMFERENCE_M .075f * PI
+#define GEAR_RATIO 16.f / 48.f
+
 RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
 
 void setup() {
@@ -64,6 +67,10 @@ static void handle_command(const commands::_base* cmd) {
       Serial.print((float)status.dutyCycle / (float)UINT8_MAX);
       Serial.print(" ");
       Serial.print(status.rpm);
+      auto wpm = (float) status.rpm * GEAR_RATIO;
+      auto speed = WHEEL_CIRCUMFERENCE_M * wpm * .06f;
+      Serial.print(" ");
+      Serial.print(speed);
       Serial.print(" ");
       Serial.print((float)status.voltInput / 10.f);
       Serial.print(" ");
