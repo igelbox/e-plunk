@@ -19,10 +19,6 @@ using namespace panic;
 #define FONT_WIDTH 6
 #define FONT_HEIGHT 8
 
-#define WHEEL_CIRCUMFERENCE_M .075f * PI
-#define GEAR_RATIO 16.f / 48.f
-#define MOTOR_POLES 7
-
 #define STATUS_EXPIRE_MS 2000
 
 RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
@@ -180,11 +176,8 @@ void loop() {
   }
 
   if (!statusExpired) {
-    auto wpm = (float)status.rpm / MOTOR_POLES * GEAR_RATIO;
-    auto speed = WHEEL_CIRCUMFERENCE_M * wpm * .06f;
-
     display.setTextSize(3);
-    auto ptr = dtostrf(speed, 0, 1, buff);
+    auto ptr = dtostrf((double)status.speed / 10.0, 0, 1, buff);
     len = strlen(ptr);
     display.setCursor(SCREEN_WIDTH - len * 3 * FONT_WIDTH, YR);
     display.print(ptr);

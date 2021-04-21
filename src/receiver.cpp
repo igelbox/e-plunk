@@ -18,6 +18,10 @@ typedef decltype(millis()) millis_t;
 #define PIN_NRF_SC 10
 // #define PIN_NRF_.. 11, 12, 13
 
+#define WHEEL_CIRCUMFERENCE_M .075f * PI
+#define GEAR_RATIO 16.f / 48.f
+#define MOTOR_POLES 7
+
 RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
 VescUart vescUart;
 static const long PWM_MIN = 1000;
@@ -62,10 +66,10 @@ static void send_status(millis_t ms, millis_t period) {
   cmd.ampsMotor = (int16_t)(vescUart.data.avgMotorCurrent * 10.f);
   cmd.ampsInput = (int16_t)(vescUart.data.avgInputCurrent * 10.f);
   cmd.dutyCycle = (uint8_t)(vescUart.data.dutyCycleNow * UINT8_MAX);
-  cmd.rpm = (uint16_t)vescUart.data.rpm;
+  auto wpm = vescUart.data.rpm / MOTOR_POLES * GEAR_RATIO;
+  auto speed = WHEEL_CIRCUMFERENCE_M * wpm * .06f;
+  cmd.speed = (uint8_t)(speed * 10.0f);
   cmd.voltInput = (int16_t)(vescUart.data.inpVoltage * 10.f);
-  cmd.tachometer = vescUart.data.tachometer;
-  cmd.tachometerAbs = vescUart.data.tachometerAbs;
   auto rs = io::send(nrf24, cmd.begin(), sizeof(cmd));
   if (rs != Error::OK) {
     report(rs);

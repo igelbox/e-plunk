@@ -31,10 +31,8 @@ struct reply_status : public _base {
   int16_t ampsMotor;
   int16_t ampsInput;
   uint8_t dutyCycle;
-  uint16_t rpm;
+  uint8_t speed;
   int16_t voltInput;
-  uint32_t tachometer;
-  uint32_t tachometerAbs;
 };
 #pragma pack(pop)
 
