@@ -49,7 +49,9 @@ void setup() {
   report(Error::OK);
 }
 
-static void send_status(millis_t ms, millis_t period) {
+static commands::reply_status status;
+
+static void gather_status(millis_t ms, millis_t period) {
   static millis_t lastMs = 0;
 
   auto dt = ms - lastMs;
@@ -58,19 +60,31 @@ static void send_status(millis_t ms, millis_t period) {
   }
   lastMs = ms;
 
-  commands::reply_status cmd;
   if (!vescUart.getVescValues()) {
+    status.tempFET = 0;
     return report(Error::VESC_UART);
   }
-  cmd.tempFET = (int8_t)vescUart.data.tempMosfet;
-  cmd.ampsMotor = (int16_t)(vescUart.data.avgMotorCurrent * 10.f);
-  cmd.ampsInput = (int16_t)(vescUart.data.avgInputCurrent * 10.f);
-  cmd.dutyCycle = (uint8_t)(vescUart.data.dutyCycleNow * UINT8_MAX);
+
+  status.tempFET = (int8_t)vescUart.data.tempMosfet;
+  status.ampsMotor = (int16_t)(vescUart.data.avgMotorCurrent * 10.f);
+  status.ampsInput = (int16_t)(vescUart.data.avgInputCurrent * 10.f);
+  status.dutyCycle = (uint8_t)(vescUart.data.dutyCycleNow * UINT8_MAX);
   auto wpm = vescUart.data.rpm / MOTOR_POLES * GEAR_RATIO;
   auto speed = WHEEL_CIRCUMFERENCE_M * wpm * .06f;
-  cmd.speed = (uint8_t)(speed * 10.0f);
-  cmd.voltInput = (int16_t)(vescUart.data.inpVoltage * 10.f);
-  auto rs = io::send(nrf24, cmd.begin(), sizeof(cmd));
+  status.speed = (uint8_t)(speed * 10.0f);
+  status.voltInput = (int16_t)(vescUart.data.inpVoltage * 10.f);
+}
+
+static void send_status(millis_t ms, millis_t period) {
+  static millis_t lastMs = 0;
+
+  auto dt = ms - lastMs;
+  if ((dt < period) && status.tempFET) {
+    return;
+  }
+  lastMs = ms;
+
+  auto rs = io::send(nrf24, status.begin(), sizeof(status));
   if (rs != Error::OK) {
     report(rs);
   }
@@ -98,6 +112,7 @@ void loop() {
 
   auto ms = millis();
 
+  gather_status(ms, 500);
   send_status(ms, 100);
 
   uint8_t message[RH_NRF24_MAX_MESSAGE_LEN];
