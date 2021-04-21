@@ -17,20 +17,20 @@ enum class Error {
   SERVO_INIT = 0x9,
   PWM_TIMEOUT = 0xA,
   UNKNOWN_CMD = 0xB,
+  VESC_UART = 0xC,
 };
 
 static uint8_t pin = 0;
 
 void panic_init(uint8_t pin) {
-  Serial.begin(9600);
+  // Serial.begin(9600);
   panic::pin = pin;
   pinMode(pin, OUTPUT);
 
   noInterrupts();
-  TCCR1A = 0;
-  TCCR1B = 0;
-  TCCR1B |= (1 << CS10);   // 1 prescaler
-  TIMSK1 |= (1 << TOIE1);  // enable timer overflow interrupt ISR
+  TCCR2A = 0;
+  TCCR2B = 0b101;          // 1024 prescaler
+  TIMSK2 |= (1 << TOIE2);  // enable timer overflow interrupt ISR
   interrupts();
 }
 
@@ -55,11 +55,11 @@ bool idle(const millis_t ms) {
   }
 
   auto idx = (ms - _echo_started) / 64;
-  if (idx < 4) {
-    digitalWrite(pin, (0b0101 >> idx) & 0x1);
+  if (idx < 8) {
+    digitalWrite(pin, (0b00101000 >> idx) & 0x1);
     return true;
   }
-  idx -= 4;
+  idx -= 8;
   auto bit = idx / 8;
   auto val = _echo_code >> bit;
   if (!val) {
@@ -76,7 +76,7 @@ bool idle(const millis_t ms) {
 
 // volatile uint32_t counter = 0;
 
-ISR(TIMER1_OVF_vect) {
+ISR(TIMER2_OVF_vect) {
   // ++counter;
   idle(millis());
 }
@@ -87,8 +87,8 @@ void report(Error error) {
   }
 
   const auto code = static_cast<uint8_t>(error);
-  Serial.print("Report: ");
-  Serial.println(code);
+  // Serial.print("Report: ");
+  // Serial.println(code);
 
   _echo(code);
 }
@@ -98,11 +98,13 @@ void halt(Error error) {
   }
 
   const auto code = static_cast<uint8_t>(error);
-  Serial.print("Panic: ");
-  Serial.println(code);
+  // Serial.print("Panic: ");
+  // Serial.println(code);
 
   for (;;) {
     _echo(code);
+    // Serial.print(millis()); Serial.print(" ");
+    // Serial.println(panic::counter);
   }
 }
 

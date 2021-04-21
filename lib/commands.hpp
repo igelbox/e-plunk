@@ -27,12 +27,12 @@ struct reply_status : public _base {
   static const uint8_t ID = 2;
   reply_status() : _base(ID){};
 
-  uint16_t tempFET;
-  uint32_t ampsMotor;
-  uint32_t ampsInput;
-  uint16_t dutyCycle;
-  uint32_t rpm;
-  uint16_t voltInput;
+  int8_t tempFET;
+  int16_t ampsMotor;
+  int16_t ampsInput;
+  uint8_t dutyCycle;
+  uint16_t rpm;
+  int16_t voltInput;
   uint32_t tachometer;
   uint32_t tachometerAbs;
 };

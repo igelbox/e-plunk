@@ -14,6 +14,7 @@ using namespace panic;
 RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
 
 void setup() {
+  Serial.begin(9600);
   panic_init(PIN_PANIC);
   analogReference(INTERNAL);
 
@@ -35,6 +36,8 @@ static void send_pwm(millis_t ms, millis_t period) {
   }
   lastMs = ms;
 
+  // Serial.print(millis()); Serial.print(" ");
+  // Serial.println(panic::counter);
   auto a0 = analogRead(A0);
   auto a1 = analogRead(A1);
   auto pos = map(a0, 0, a1, INT8_MIN, INT8_MAX);
@@ -48,21 +51,21 @@ static void send_pwm(millis_t ms, millis_t period) {
   }
 }
 
-static void handle_command(const commands::_base *cmd) {
+static void handle_command(const commands::_base* cmd) {
   switch (cmd->id) {
     case commands::reply_status::ID: {
-      auto &status = *static_cast<const commands::reply_status*>(cmd);
+      auto& status = *static_cast<const commands::reply_status*>(cmd);
       Serial.print(status.tempFET);
       Serial.print(" ");
-      Serial.print(status.ampsMotor);
+      Serial.print((float)status.ampsMotor / 10.f);
       Serial.print(" ");
-      Serial.print(status.ampsInput);
+      Serial.print((float)status.ampsInput / 10.f);
       Serial.print(" ");
-      Serial.print(status.dutyCycle);
+      Serial.print((float)status.dutyCycle / (float)UINT8_MAX);
       Serial.print(" ");
       Serial.print(status.rpm);
       Serial.print(" ");
-      Serial.print(status.voltInput);
+      Serial.print((float)status.voltInput / 10.f);
       Serial.print(" ");
       Serial.print(status.tachometer);
       Serial.print(" ");
