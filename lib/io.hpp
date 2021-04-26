@@ -8,20 +8,18 @@
 
 #include "panic.hpp"
 
-#include "../secret.h"
+#include "../secret.hpp"
 
 namespace io {
 using panic::Error;
 
 static void _crypt(void* data, uint8_t size) {
+  static_assert(sizeof(CIPHER) >= 4);
   assert(data);
-  assert(size <= sizeof(CIPHER));
 
-  auto* p_cipher = CIPHER;
-  auto ptr = (uint8_t*)data;
-  auto end = &ptr[size];
-  while (ptr != end) {
-    *(ptr++) ^= *(p_cipher++);
+  const uint8_t to = max(sizeof(CIPHER), size);
+  for (auto i = 0; i < to; ++i) {
+    reinterpret_cast<uint8_t*>(data)[i % size] ^= CIPHER[i % sizeof(CIPHER)];
   }
 }
 
