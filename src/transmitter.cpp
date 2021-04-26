@@ -40,7 +40,7 @@ static void panic_draw() {
 void setup() {
   analogReference(INTERNAL);
 
-  Serial.begin(9600);
+  Serial.begin(19200);
   panic_init(PIN_PANIC);
   panic::init_printer([](const char* kind, uint8_t code) {
     panic_snprintf(kind, code);
