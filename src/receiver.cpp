@@ -79,7 +79,7 @@ static void send_status(millis_t ms, millis_t period) {
   static millis_t lastMs = 0;
 
   auto dt = ms - lastMs;
-  if ((dt < period) && status.tempFET) {
+  if ((dt < period) || !status.tempFET) {
     return;
   }
   lastMs = ms;
