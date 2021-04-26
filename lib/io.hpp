@@ -34,7 +34,7 @@ Error init(RH_NRF24& nrf) {
     return Error::NRF_CHANNEL;
   }
 
-  if (!nrf.setRF(RH_NRF24::DataRate2Mbps, RH_NRF24::TransmitPowerm18dBm)) {
+  if (!nrf.setRF(RH_NRF24::DataRate250kbps, RH_NRF24::TransmitPower0dBm)) {
     return Error::NRF_POWER;
   }
 
