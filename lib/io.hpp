@@ -1,6 +1,8 @@
 #pragma once
 
-#include <RH_NRF24.h>
+#include <RF24.h>
+
+#define RF24_MAX_MESSAGE_LEN 32
 
 #include <OneWire.h>
 #include <assert.h>
@@ -23,53 +25,42 @@ static void _crypt(void* data, uint8_t size) {
   }
 }
 
-Error init(RH_NRF24& nrf) {
-  if (!nrf.init()) {
+Error init(RF24& nrf) {
+  if (!nrf.begin()) {
     return Error::NRF_INIT;
   }
 
-  if (!nrf.setChannel(CHANNEL)) {
-    return Error::NRF_CHANNEL;
-  }
-
-  if (!nrf.setRF(RH_NRF24::DataRate250kbps, RH_NRF24::TransmitPower0dBm)) {
+  nrf.setChannel(CHANNEL);
+  nrf.setPALevel(RF24_PA_HIGH);
+  nrf.enableDynamicPayloads();
+  if (!nrf.setDataRate(RF24_250KBPS)) {
     return Error::NRF_POWER;
   }
 
   return Error::OK;
 }
 
-Error send(RH_NRF24& nrf, const uint8_t* data, uint8_t size) {
+typedef uint8_t message_t[RF24_MAX_MESSAGE_LEN];
+uint8_t prepare_send(message_t& message, const uint8_t* data, uint8_t size) {
   assert(data);
-  assert(size < RH_NRF24_MAX_MESSAGE_LEN);
+  assert(size < RF24_MAX_MESSAGE_LEN);
 
-  uint8_t message[RH_NRF24_MAX_MESSAGE_LEN];
   auto crc = OneWire::crc8(data, size);
   memcpy(message, data, size);
   _crypt(message, size);
   message[size] = crc;
-
-  if (!nrf.send(message, size + 1)) {
-    return Error::SEND;
-  }
-
-  if (!nrf.waitPacketSent()) {
-    return Error::SEND_WAIT;
-  }
-
-  return Error::OK;
+  return size + 1;
 }
 
-Error recv(RH_NRF24& nrf, uint8_t* buffer, uint8_t* size) {
+Error recv(RF24& nrf, uint8_t* buffer, uint8_t* size) {
   assert(buffer);
   if (!nrf.available()) {
     *size = 0;
     return Error::OK;
   }
 
-  if (!nrf.recv(buffer, size)) {
-    return Error::NRF_RECV;
-  }
+  nrf.read(buffer, *size);
+  *size = nrf.getDynamicPayloadSize();
   if (*size == 0) {
     return Error::NRF_RECV_EMPTY;
   }

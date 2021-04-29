@@ -1,5 +1,5 @@
 #include <Adafruit_SSD1306.h>
-#include <RH_NRF24.h>
+#include <RF24.h>
 
 #include "../lib/commands.hpp"
 #include "../lib/io.hpp"
@@ -22,7 +22,7 @@ using namespace panic;
 
 #define STATUS_EXPIRE_MS 2000
 
-RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
+RF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
 static char PANIC_BUFFER[16];
@@ -63,6 +63,9 @@ void setup() {
   for (auto r = io::init(nrf24); r != Error::OK;) {
     return halt(r);
   }
+  nrf24.enableAckPayload();
+  nrf24.openWritingPipe(PIPE_ADDRESS);
+  nrf24.stopListening();
 
   report(Error::OK);
 }
@@ -70,6 +73,8 @@ void setup() {
 commands::reply_status status;
 millis_t status_time = -STATUS_EXPIRE_MS;
 uint16_t transmitterCentVolts;
+
+io::message_t message;
 
 static void send_pwm(millis_t ms, millis_t period) {
   static millis_t lastMs = 0;
@@ -91,9 +96,9 @@ static void send_pwm(millis_t ms, millis_t period) {
   commands::set_pwm cmd;
   cmd.value = pos;
   // Serial.println(pos);
-  auto rs = io::send(nrf24, cmd.begin(), sizeof(cmd));
-  if (rs != Error::OK) {
-    report(rs);
+  auto len = io::prepare_send(message, cmd.begin(), sizeof(cmd));
+  if (!nrf24.writeBlocking(message, len, 50)) {
+    report(Error::SEND);
   }
 }
 
@@ -129,7 +134,6 @@ void loop() {
 
   send_pwm(ms, 10);
 
-  uint8_t message[RH_NRF24_MAX_MESSAGE_LEN];
   uint8_t len = sizeof(message);
   auto rr = io::recv(nrf24, message, &len);
   switch (rr) {

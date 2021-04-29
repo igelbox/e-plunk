@@ -1,4 +1,4 @@
-#include <RH_NRF24.h>
+#include <RF24.h>
 #include <Servo.h>
 #include <VescUart.h>
 #include <avr/wdt.h>
@@ -22,7 +22,7 @@ typedef decltype(millis()) millis_t;
 #define GEAR_RATIO 16.f / 48.f
 #define MOTOR_POLES 7
 
-RH_NRF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
+RF24 nrf24(PIN_NRF_CE, PIN_NRF_SC);
 VescUart vescUart;
 static const long PWM_MIN = 1000;
 static const long PWM_NO_SIGNAL = 1450;  // A slight brake
@@ -42,6 +42,9 @@ void setup() {
   for (auto r = io::init(nrf24); r != Error::OK;) {
     return halt(r);
   }
+  nrf24.enableAckPayload();
+  nrf24.openReadingPipe(0, PIPE_ADDRESS);
+  nrf24.startListening();
 
   Serial.begin(19200);
   vescUart.setSerialPort(&Serial);
@@ -75,18 +78,19 @@ static void gather_status(millis_t ms, millis_t period) {
   status.voltInput = (int16_t)(vescUart.data.inpVoltage * 10.f);
 }
 
+static io::message_t message;
+
 static void send_status(millis_t ms, millis_t period) {
   static millis_t lastMs = 0;
 
   auto dt = ms - lastMs;
-  if ((dt < period) || !status.tempFET) {
+  if (dt < period) {
     return;
   }
   lastMs = ms;
-
-  auto rs = io::send(nrf24, status.begin(), sizeof(status));
-  if (rs != Error::OK) {
-    report(rs);
+  auto len = io::prepare_send(message, status.begin(), sizeof(status));
+  if (!nrf24.writeAckPayload(0, message, len)) {
+    report(Error::SEND);
   }
 }
 
@@ -115,7 +119,6 @@ void loop() {
   gather_status(ms, 500);
   send_status(ms, 100);
 
-  uint8_t message[RH_NRF24_MAX_MESSAGE_LEN];
   uint8_t len = sizeof(message);
   auto rr = io::recv(nrf24, message, &len);
   switch (rr) {
