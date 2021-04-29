@@ -91,7 +91,7 @@ static void send_pwm(millis_t ms, millis_t period) {
   auto a1 = analogRead(A1);
   auto pos =
       constrain(map(a0, 0, a1 - 10, INT8_MIN, INT8_MAX), INT8_MIN, INT8_MAX);
-  transmitterCentVolts = map(a1, 445, 635, 419, 446);
+  transmitterCentVolts = map(a1, 549, 563, 422, 433);
 
   commands::set_pwm cmd;
   cmd.value = pos;
