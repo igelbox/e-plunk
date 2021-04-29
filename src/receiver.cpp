@@ -12,9 +12,9 @@ using namespace panic;
 typedef decltype(millis()) millis_t;
 
 #define PIN_PANIC 4
-#define PIN_PWM 6
+#define PIN_PWM 9
 
-#define PIN_NRF_CE 9
+#define PIN_NRF_CE 8
 #define PIN_NRF_SC 10
 // #define PIN_NRF_.. 11, 12, 13
 
